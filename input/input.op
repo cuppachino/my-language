@@ -1,1 +1,8 @@
-let a = 40 + 8;
+let fourty_eight = 40 + 8;
+
+add :: Int -> Int -> Int
+let add x y = (x + y);
+
+let add_fourty_eight x = x add fourty_eight;
+
+let hello_world = "Start \nNewline \"escaped\", 'single', `tick` End";
