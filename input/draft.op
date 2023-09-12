@@ -1,0 +1,16 @@
+let fourty_eight = 40 + 8;
+
+add :: Int -> Int -> Int
+let add x y = (x + y);
+
+// comment
+
+/*
+  block comment
+*/
+
+let add_fourty_eight x = x add fourty_eight;
+
+let hello_world = "Start \nNewline \"escaped\", 
+
+'single', `tick` End";

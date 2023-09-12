@@ -1,8 +1,18 @@
-let fourty_eight = 40 + 8;
+// Single line comment
+
+/*
+  Block comment
+*/
 
 add :: Int -> Int -> Int
-let add x y = (x + y);
+let add x y = x + y;
 
-let add_fourty_eight x = x add fourty_eight;
 
-let hello_world = "Start \nNewline \"escaped\", 'single', `tick` End";
+// let a = add 1 2.2;
+// let b = 1 add 2;
+
+let hello_world = "Start \nNewline \"escaped\", 
+'single', `tick` End";
+
+/* should error when we realize "const" was never defined with `let` */
+// const what = 1 + 2
