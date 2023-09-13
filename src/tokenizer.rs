@@ -1,167 +1,11 @@
+use crate::{
+    error::CrateError,
+    tokens::{Operator, Paren, Symbol, Token},
+};
 use std::{
     fs::File,
     io::{BufReader, Lines},
 };
-
-use my_language::into_chars;
-
-#[derive(Debug)]
-pub enum Token {
-    Keyword(Keyword),
-    Symbol(Symbol),
-    Identifier(String),
-    IntegerConstant(i32),
-    StringConstant(String),
-    Comment(String),
-    Paren(Paren),
-}
-
-const KEYWORDS: [&str; 2] = ["fn", "let"];
-
-#[derive(Debug)]
-pub enum Keyword {
-    Fn,
-    Let,
-}
-
-impl TryFrom<&str> for Keyword {
-    type Error = CrateError;
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        match s {
-            "fn" => Ok(Keyword::Fn),
-            "let" => Ok(Keyword::Let),
-            _ => Err(CrateError::TokenizerError(TokenizerError::InvalidKeyword(
-                s.to_string(),
-            ))),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum Symbol {
-    Comma,
-    Operator(Operator),
-    Semicolon,
-    NewLine,
-    EndOfFile,
-}
-
-const OPERATORS: [&str; 15] = [
-    "!", "&", "|", "+", "-", "*", "/", "<", ">", "=", "==", ">=", "<=", "::", "->",
-];
-
-#[derive(Debug)]
-pub enum Operator {
-    Not,
-    And,
-    Or,
-    Assignment,
-    DoubleColon,
-    Arrow,
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-    Equal,
-    LessThan,
-    LessThanOrEqual,
-    GreaterThan,
-    GreaterThanOrEqual,
-}
-
-impl TryFrom<char> for Operator {
-    type Error = &'static str;
-    fn try_from(c: char) -> Result<Operator, Self::Error> {
-        let c = match c {
-            '!' => Operator::Not,
-            '&' => Operator::And,
-            '|' => Operator::Or,
-            '+' => Operator::Add,
-            '-' => Operator::Subtract,
-            '*' => Operator::Multiply,
-            '/' => Operator::Divide,
-            '<' => Operator::LessThan,
-            '>' => Operator::GreaterThan,
-            '=' => Operator::Assignment,
-            _ => panic!("Invalid operator, you probably want to use From<&str> and not From<char>"),
-        };
-        Ok(c)
-    }
-}
-
-impl TryFrom<&str> for Operator {
-    type Error = &'static str;
-    fn try_from(s: &str) -> Result<Operator, Self::Error> {
-        let s = match s {
-            "<=" => Operator::LessThanOrEqual,
-            ">=" => Operator::GreaterThanOrEqual,
-            "==" => Operator::Equal,
-            "::" => Operator::DoubleColon,
-            "->" => Operator::Arrow,
-            _ => {
-                let c = s.chars().next().unwrap();
-                Operator::try_from(c).unwrap()
-            }
-        };
-        Ok(s)
-    }
-}
-
-const PARENS: [&str; 6] = ["(", ")", "{", "}", "[", "]"];
-
-#[derive(Debug)]
-pub struct Paren(pub ParenType, pub Kind);
-
-#[derive(Debug)]
-pub enum ParenType {
-    Round,
-    Curly,
-    Square,
-}
-
-#[derive(Debug)]
-pub enum Kind {
-    Open,
-    Close,
-}
-
-impl TryFrom<char> for Paren {
-    type Error = &'static str;
-    fn try_from(c: char) -> Result<Paren, Self::Error> {
-        let c = match c {
-            '(' => Paren(ParenType::Round, Kind::Open),
-            ')' => Paren(ParenType::Round, Kind::Close),
-            '{' => Paren(ParenType::Curly, Kind::Open),
-            '}' => Paren(ParenType::Curly, Kind::Close),
-            '[' => Paren(ParenType::Square, Kind::Open),
-            ']' => Paren(ParenType::Square, Kind::Close),
-            _ => panic!("Invalid paren"),
-        };
-        Ok(c)
-    }
-}
-
-impl TryFrom<&str> for Paren {
-    type Error = &'static str;
-    fn try_from(s: &str) -> Result<Paren, Self::Error> {
-        Paren::try_from(s.chars().next().unwrap())
-    }
-}
-
-impl TryFrom<&str> for Token {
-    type Error = CrateError;
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        let s = match s {
-            ";" => Token::Symbol(Symbol::Semicolon),
-            k if KEYWORDS.contains(&s) => Token::Keyword(Keyword::try_from(k)?),
-            p if PARENS.contains(&s) => Token::Paren(Paren::try_from(p).unwrap()),
-            o if OPERATORS.contains(&s) => Token::Symbol(Symbol::Operator(o.try_into().unwrap())),
-            i if i.parse::<i32>().is_ok() => Token::IntegerConstant(i.parse::<i32>().unwrap()),
-            _ => Token::Identifier(s.to_string()),
-        };
-        Ok(s)
-    }
-}
 
 #[derive(Debug, Default)]
 pub struct Tokenizer {
@@ -170,9 +14,20 @@ pub struct Tokenizer {
 }
 
 impl Tokenizer {
+    fn into_chars(lines: Lines<BufReader<File>>) -> Vec<char> {
+        let mut chars = Vec::new();
+        for line in lines {
+            for c in line.unwrap().chars() {
+                chars.push(c);
+            }
+            chars.push('\n');
+        }
+        chars
+    }
+
     pub fn new(lines: Lines<BufReader<File>>) -> Self {
         Self {
-            chars: into_chars(lines),
+            chars: Tokenizer::into_chars(lines),
             ..Self::default()
         }
     }
@@ -185,9 +40,8 @@ impl Tokenizer {
         while let Some(c) = chars.next() {
             if (c == &'\n' || c == &'\r') && prev_newline {
                 continue;
-            } else {
-                prev_newline = false;
             }
+            prev_newline = false;
             match c {
                 ' ' | '\t' => continue,
                 '\0' => tokens.push(Token::Symbol(Symbol::EndOfFile)),
@@ -278,7 +132,7 @@ impl Tokenizer {
                     }
                     tokens.push(Token::IntegerConstant(number.parse::<i32>().unwrap()));
                 }
-                c if PARENS.contains(&c.to_string().as_str()) => {
+                '(' | ')' | '[' | ']' | '{' | '}' => {
                     tokens.push(Token::Paren(Paren::try_from(*c).unwrap()));
                 }
                 '!' | '&' | '|' | '+' | '*' | '<' | '>' | '=' => {
@@ -375,8 +229,8 @@ impl Tokenizer {
 #[derive(Debug)]
 pub enum TokenizerError {
     UnknownCharacter(char),
-    InvalidOperator(String),
-    InvalidParen(String),
+    UnknownOperator(String),
+    UnknownParen(char),
     InvalidKeyword(String),
     InvalidIdentifier(String),
     UnsupportedFloat(String),
@@ -384,38 +238,22 @@ pub enum TokenizerError {
     UnterminatedBlockComment(String),
 }
 
-#[derive(Debug)]
-pub enum CrateError {
-    IoError(std::io::Error),
-    TokenizerError(TokenizerError),
-}
-
-impl From<std::io::Error> for CrateError {
-    fn from(e: std::io::Error) -> Self {
-        Self::IoError(e)
-    }
-}
-
-use std::fmt::{Display, Formatter};
-impl Display for CrateError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl std::fmt::Display for TokenizerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::IoError(e) => write!(f, "IO Error: {}", e),
-            Self::TokenizerError(e) => match e {
-                TokenizerError::UnknownCharacter(c) => write!(f, "Invalid character: {}", c),
-                TokenizerError::InvalidOperator(s) => write!(f, "Invalid operator: {}", s),
-                TokenizerError::InvalidParen(s) => write!(f, "Invalid paren: {}", s),
-                TokenizerError::InvalidKeyword(s) => write!(f, "Invalid keyword: {}", s),
-                TokenizerError::UnsupportedFloat(s) => write!(f, "Invalid integer: {}", s),
-                TokenizerError::InvalidIdentifier(s) => write!(f, "Invalid identifier: {}", s),
-                TokenizerError::UnterminatedBlockComment(s) => {
-                    write!(f, "Block comment missing closing tag: {}", s)
-                }
-                TokenizerError::UnterminatedString(Token::StringConstant(s)) => {
-                    write!(f, "Unterminated string: {:?}", s)
-                }
-                _ => write!(f, "Tokenizer Error (unknown): {:?}", e),
-            },
+            TokenizerError::UnknownCharacter(c) => write!(f, "Invalid character: {}", c),
+            TokenizerError::UnknownOperator(s) => write!(f, "Unknown operator token: {}", s),
+            TokenizerError::UnknownParen(c) => write!(f, "Unknown paren character: {}", c),
+            TokenizerError::InvalidKeyword(s) => write!(f, "Invalid keyword: {}", s),
+            TokenizerError::InvalidIdentifier(s) => write!(f, "Invalid identifier: {}", s),
+            TokenizerError::UnsupportedFloat(s) => write!(f, "Invalid integer: {}", s),
+            TokenizerError::UnterminatedString(Token::StringConstant(s)) => {
+                write!(f, "Unterminated string: {:?}", s)
+            }
+            TokenizerError::UnterminatedBlockComment(s) => {
+                write!(f, "Block comment missing closing tag: {}", s)
+            }
+            _ => write!(f, "Unknown lexing error"),
         }
     }
 }

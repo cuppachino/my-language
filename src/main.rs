@@ -4,9 +4,13 @@ use std::path::Path;
 use std::process;
 
 mod cli;
+mod error;
+mod rules;
 mod tokenizer;
+// pub use tokenizer::{Token, TokenizerError};
+mod tokens;
 use cli::*;
-use tokenizer::CrateError;
+use error::CrateError;
 
 use crate::tokenizer::Tokenizer;
 
